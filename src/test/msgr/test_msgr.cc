@@ -175,6 +175,7 @@ class FakeDispatcher : public Dispatcher {
       s->put();
     }
     got_remote_reset = true;
+    cond.Signal();
   }
   void ms_fast_dispatch(Message *m) {
     Mutex::Locker l(lock);
@@ -450,6 +451,7 @@ TEST_P(MessengerTest, StatefulTest) {
   // don't lose state
   ASSERT_TRUE(static_cast<Session*>(server_conn->get_priv())->get_count() == 1);
 
+  srv_dispatcher.got_new = false;
   conn = client_msgr->get_connection(server_msgr->get_myinst());
   {
     m = new MPing();
@@ -461,7 +463,11 @@ TEST_P(MessengerTest, StatefulTest) {
   }
   ASSERT_TRUE(static_cast<Session*>(conn->get_priv())->get_count() == 1);
   server_conn = server_msgr->get_connection(client_msgr->get_myinst());
-  ASSERT_TRUE(static_cast<Session*>(server_conn->get_priv())->get_count() == 1);
+  {
+    Mutex::Locker l(srv_dispatcher.lock);
+    while (!srv_dispatcher.got_remote_reset)
+      srv_dispatcher.cond.Wait(srv_dispatcher.lock);
+  }
 
   // 2. test for client reconnect
   ASSERT_FALSE(cli_dispatcher.got_remote_reset);
@@ -529,6 +535,7 @@ TEST_P(MessengerTest, StatelessTest) {
   conn->mark_down();
   ASSERT_FALSE(conn->is_connected());
 
+  srv_dispatcher.got_new = false;
   conn = client_msgr->get_connection(server_msgr->get_myinst());
   {
     m = new MPing();
@@ -541,7 +548,12 @@ TEST_P(MessengerTest, StatelessTest) {
   ASSERT_TRUE(static_cast<Session*>(conn->get_priv())->get_count() == 1);
   ConnectionRef server_conn = server_msgr->get_connection(client_msgr->get_myinst());
   // server lose state
-  ASSERT_TRUE(static_cast<Session*>(server_conn->get_priv())->get_count() == 1);
+  {
+    Mutex::Locker l(srv_dispatcher.lock);
+    while (!srv_dispatcher.got_new)
+      srv_dispatcher.cond.Wait(srv_dispatcher.lock);
+  }
+  ASSERT_EQ(static_cast<Session*>(server_conn->get_priv())->get_count(), 1);
 
   // 2. test for client lossy
   server_conn->mark_down();
