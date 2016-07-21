@@ -262,8 +262,6 @@ endif(ALLOCATOR)
 
 find_package(keyutils REQUIRED)
 
-find_package(libuuid REQUIRED)
-
 find_package(CURL REQUIRED)
 set(CMAKE_REQUIRED_INCLUDES ${CURL_INCLUDE_DIRS})
 set(CMAKE_REQUIRED_LIBRARIES ${CURL_LIBRARIES})
