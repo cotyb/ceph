@@ -1096,7 +1096,7 @@ TRACEPOINT_EVENT(librbd, snap_remove2_enter,
         const char*, snap_name,
         char, read_only,
         const char*, remove_snap_name,
-	uint32_t flags),
+	uint32_t, flags),
     TP_FIELDS(
         ctf_integer_hex(void*, imagectx, imagectx)
         ctf_string(name, name)
